@@ -11,11 +11,12 @@
 #include "rb.h"
 #include "utils.h"
 
-rb_rwbytes_t *rb_alloc(int count, int buf_size) {
+rb_rwbytes_t *rb_alloc(int count, int buf_size, bool block_producer) {
     rb_rwbytes_t *rb = malloc(sizeof(rb_rwbytes_t));
 
     rb->count = count;
     rb->buf_size = buf_size;
+    rb->block_producer = block_producer;
 
     if ((rb->ring_buffer = malloc(count * sizeof(pn_rwbytes_t))) == NULL) {
         free(rb);
@@ -51,6 +52,7 @@ rb_rwbytes_t *rb_alloc(int count, int buf_size) {
     rb->total_t2.tv_nsec = 0;
 
     pthread_cond_init(&rb->rb_ready, NULL);
+    pthread_cond_init(&rb->rb_free, NULL);
     pthread_mutex_init(&rb->rb_mutex, NULL);
 
     return rb;
@@ -82,8 +84,9 @@ pn_rwbytes_t *rb_get_tail(rb_rwbytes_t *rb) {
 }
 
 // Place the already allocated buffer entry in the
-// queue.  The producer does not block as it needs
-// to continually process the incoming AMQP messagaes.
+// queue. The producer does not block unless the
+// --amqp_block flag is specified, as it needs
+// to continually process the incoming AMQP messages.
 // Just need to wake up the consumer if it is waiting
 // for messages.
 pn_rwbytes_t *rb_put(rb_rwbytes_t *rb) {
@@ -93,6 +96,14 @@ pn_rwbytes_t *rb_put(rb_rwbytes_t *rb) {
     pn_rwbytes_t *next_buffer = NULL;
 
     int next = (rb->head + 1) % rb->count;
+    if (rb->block_producer && next == rb->tail) {
+        // Wait until consumer consumes a message,
+        // which frees a space in rb and that makes
+        // (next != rb-> tail) == true
+        pthread_mutex_lock(&rb->rb_mutex);
+        pthread_cond_wait(&rb->rb_free, &rb->rb_mutex);
+        pthread_mutex_unlock(&rb->rb_mutex);
+    }
     if (next != rb->tail) {
         rb->head = next;
         next_buffer = &rb->ring_buffer[rb->head];
@@ -127,6 +138,9 @@ pn_rwbytes_t *rb_get(rb_rwbytes_t *rb) {
     rb->ring_buffer[rb->tail].size = 0;
 
     rb->tail = next;
+    pthread_mutex_lock(&rb->rb_mutex);
+    pthread_cond_broadcast(&rb->rb_free);
+    pthread_mutex_unlock(&rb->rb_mutex);
 
     rb->processed++;
 
