@@ -294,7 +294,8 @@ int main(int argc, char **argv) {
         printf("Standalone mode\n");
     }
 
-    app.rbin = rb_alloc(app.ring_buffer_count, app.ring_buffer_size, app.amqp_block);
+    app.rbin =
+        rb_alloc(app.ring_buffer_count, app.ring_buffer_size, app.amqp_block);
 
     app.amqp_rcv_th_running = true;
     pthread_create(&app.amqp_rcv_th, NULL, amqp_rcv_th, (void *)&app);
