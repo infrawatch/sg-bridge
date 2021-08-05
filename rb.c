@@ -52,8 +52,11 @@ rb_rwbytes_t *rb_alloc(int count, int buf_size, bool block_producer) {
     rb->total_t2.tv_nsec = 0;
 
     pthread_cond_init(&rb->rb_ready, NULL);
-    pthread_cond_init(&rb->rb_free, NULL);
     pthread_mutex_init(&rb->rb_mutex, NULL);
+
+	if (rb->block_producer) {
+		pthread_cond_init(&rb->rb_free, NULL);
+	}
 
     return rb;
 }
@@ -138,9 +141,12 @@ pn_rwbytes_t *rb_get(rb_rwbytes_t *rb) {
     rb->ring_buffer[rb->tail].size = 0;
 
     rb->tail = next;
-    pthread_mutex_lock(&rb->rb_mutex);
-    pthread_cond_broadcast(&rb->rb_free);
-    pthread_mutex_unlock(&rb->rb_mutex);
+
+	if (rb->block_producer) {
+		pthread_mutex_lock(&rb->rb_mutex);
+		pthread_cond_broadcast(&rb->rb_free);
+		pthread_mutex_unlock(&rb->rb_mutex);
+	}
 
     rb->processed++;
 
