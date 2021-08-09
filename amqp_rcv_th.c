@@ -309,8 +309,8 @@ void *amqp_rcv_th(void *app_ptr) {
         /* Initialize Sasl transport */
         pn_transport_t *pnt = pn_transport();
         pn_sasl_set_allow_insecure_mechs(pn_sasl(pnt), true);
-        if ( app->verbose>1) {
-            pn_transport_trace(pnt,PN_TRACE_FRM);
+        if (app->verbose > 1) {
+            pn_transport_trace(pnt, PN_TRACE_FRM);
         }
         pn_proactor_connect2(app->proactor, NULL, pnt, addr);
     }

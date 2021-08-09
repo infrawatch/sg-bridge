@@ -24,7 +24,7 @@
 #define DEFAULT_RING_BUFFER_COUNT "5000"
 #define DEFAULT_RING_BUFFER_SIZE "2048"
 
-#define AMQP_URL_REGEX \
+#define AMQP_URL_REGEX                                                         \
     "^(amqps*)://(([a-z]+)(:([a-z]+))*@)*([a-zA-Z_0-9.-]+)(:([0-9]+))*(.+)$"
 
 typedef struct {

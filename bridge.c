@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
     app.peer_port = DEFAULT_INET_PORT;
     app.ring_buffer_size = atoi(DEFAULT_RING_BUFFER_SIZE);
     app.ring_buffer_count = atoi(DEFAULT_RING_BUFFER_COUNT);
-    
+
     int num_args = sizeof(option_info) / sizeof(struct option_info);
     struct option *longopts = malloc(sizeof(struct option) * num_args);
     for (int i = 0; i < num_args; i++) {
@@ -307,8 +307,9 @@ int main(int argc, char **argv) {
                    app.amqp_received, app.amqp_received - last_amqp_received,
                    app.rbin->overruns, app.rbin->overruns - last_overrun,
                    app.sock_sent, app.sock_sent - last_out,
-                   app.sock_would_block, app.sock_would_block - last_sock_overrun,
-                   app.link_credit/(float) app.amqp_received);
+                   app.sock_would_block,
+                   app.sock_would_block - last_sock_overrun,
+                   app.link_credit / (float)app.amqp_received);
 
             sleep_count = 1;
         }
