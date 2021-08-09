@@ -2,8 +2,8 @@
 #ifndef _RB_H
 #define _RB_H 1
 
-#include <time.h>
 #include <proton/types.h>
+#include <time.h>
 
 #include <pthread.h>
 
@@ -34,13 +34,13 @@ typedef struct {
 
 extern rb_rwbytes_t *rb_alloc(int count, int buf_size);
 
-extern pn_rwbytes_t *rb_get_head (rb_rwbytes_t *rb);
+extern pn_rwbytes_t *rb_get_head(rb_rwbytes_t *rb);
 
-extern pn_rwbytes_t *rb_get_tail( rb_rwbytes_t *rb);
+extern pn_rwbytes_t *rb_get_tail(rb_rwbytes_t *rb);
 
-extern pn_rwbytes_t *rb_put( rb_rwbytes_t *rb);
+extern pn_rwbytes_t *rb_put(rb_rwbytes_t *rb);
 
-extern pn_rwbytes_t *rb_get( rb_rwbytes_t *rb);
+extern pn_rwbytes_t *rb_get(rb_rwbytes_t *rb);
 
 extern void rb_free(rb_rwbytes_t *rb);
 

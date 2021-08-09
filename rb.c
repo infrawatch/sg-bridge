@@ -104,8 +104,7 @@ pn_rwbytes_t *rb_put(rb_rwbytes_t *rb) {
         rb->ring_buffer[rb->head].size = 0;
     }
 
-
-    return next_buffer;  // May be NULL
+    return next_buffer; // May be NULL
 }
 
 pn_rwbytes_t *rb_get(rb_rwbytes_t *rb) {
@@ -117,9 +116,9 @@ pn_rwbytes_t *rb_get(rb_rwbytes_t *rb) {
 
     next = (rb->tail + 1) % rb->count;
     while (next == rb->head) {
-         pthread_mutex_lock(&rb->rb_mutex);
-         pthread_cond_wait(&rb->rb_ready, &rb->rb_mutex);
-         pthread_mutex_unlock(&rb->rb_mutex);
+        pthread_mutex_lock(&rb->rb_mutex);
+        pthread_cond_wait(&rb->rb_ready, &rb->rb_mutex);
+        pthread_mutex_unlock(&rb->rb_mutex);
 
         next = (rb->tail + 1) % rb->count;
         rb->queue_block++;
@@ -134,9 +133,7 @@ pn_rwbytes_t *rb_get(rb_rwbytes_t *rb) {
     return &rb->ring_buffer[rb->tail];
 }
 
-int rb_inuse_size(rb_rwbytes_t *rb) {
-    return rb->count - rb_free_size(rb);
-}
+int rb_inuse_size(rb_rwbytes_t *rb) { return rb->count - rb_free_size(rb); }
 
 int rb_free_size(rb_rwbytes_t *rb) {
     assert(rb->head != rb->tail);
@@ -144,21 +141,13 @@ int rb_free_size(rb_rwbytes_t *rb) {
     int head = rb->head;
     int tail = rb->tail;
 
-    return head > tail ? rb->count - (head - tail) : tail - head ;
+    return head > tail ? rb->count - (head - tail) : tail - head;
 }
 
-int rb_size(rb_rwbytes_t *rb) {
-    return rb->count;
-}
+int rb_size(rb_rwbytes_t *rb) { return rb->count; }
 
-long rb_get_overruns(rb_rwbytes_t *rb) {
-    return rb->overruns;
-}
+long rb_get_overruns(rb_rwbytes_t *rb) { return rb->overruns; }
 
-long rb_get_processed(rb_rwbytes_t *rb) {
-    return rb->processed;
-}
+long rb_get_processed(rb_rwbytes_t *rb) { return rb->processed; }
 
-long rb_get_queue_block(rb_rwbytes_t *rb) {
-    return rb->queue_block;
-}
+long rb_get_queue_block(rb_rwbytes_t *rb) { return rb->queue_block; }

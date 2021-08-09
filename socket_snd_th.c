@@ -50,24 +50,22 @@ static int prepare_send_socket_inet(app_data_t *app) {
 
     memset(&hints, 0, sizeof(struct addrinfo));
 
-    hints.ai_family = AF_UNSPEC,
-    hints.ai_socktype = SOCK_DGRAM,
-    hints.ai_protocol = 0,
-    hints.ai_flags = AI_ADDRCONFIG;
+    hints.ai_family = AF_UNSPEC, hints.ai_socktype = SOCK_DGRAM,
+    hints.ai_protocol = 0, hints.ai_flags = AI_ADDRCONFIG;
 
-    int err = getaddrinfo(app->peer_host, app->peer_port, &hints, &peer_addrinfo);
+    int err =
+        getaddrinfo(app->peer_host, app->peer_port, &hints, &peer_addrinfo);
     if (err != 0) {
-        fprintf(
-            stderr,
-            "%s: getaddrinfo returned non-zero value: %d\n", __func__,
-            errno);
+        fprintf(stderr, "%s: getaddrinfo returned non-zero value: %d\n",
+                __func__, errno);
         perror("Error");
         freeaddrinfo(peer_addrinfo);
         return -1;
     }
 
-    app->send_sock = socket(peer_addrinfo->ai_family, peer_addrinfo->ai_socktype,
-                        peer_addrinfo->ai_protocol);
+    app->send_sock =
+        socket(peer_addrinfo->ai_family, peer_addrinfo->ai_socktype,
+               peer_addrinfo->ai_protocol);
     if (app->send_sock == -1) {
         fprintf(stderr, "%s: socket returned -1\n", __func__);
         perror("Error");
@@ -80,14 +78,73 @@ static int prepare_send_socket_inet(app_data_t *app) {
     void *ptr = &((struct sockaddr_in *)peer_addrinfo->ai_addr)->sin_addr;
     inet_ntop(peer_addrinfo->ai_family, ptr, addrstr, sizeof(addrstr));
 
-
-    printf("%s ==> (%s:%d)\n", app->container_id, addrstr, 
-        ntohs((((struct sockaddr_in *)((struct sockaddr *)peer_addrinfo->ai_addr))->sin_port)));
+    printf(
+        "%s ==> (%s:%d)\n", app->container_id, addrstr,
+        ntohs(
+            (((struct sockaddr_in *)((struct sockaddr *)peer_addrinfo->ai_addr))
+                 ->sin_port)));
 
     memcpy(&app->sa, peer_addrinfo->ai_addr, peer_addrinfo->ai_addrlen);
     app->sa_len = peer_addrinfo->ai_addrlen;
 
     return 0;
+}
+
+static int process_message_binary(app_data_t *app, pn_data_t *body) {
+    pn_bytes_t b = pn_data_get_bytes(body);
+    if (b.start != NULL) {
+        int send_flags = app->socket_flags;
+
+        ssize_t sent_bytes = sendto(app->send_sock, b.start, b.size, send_flags,
+                                    &app->sa, app->sa_len);
+        if (sent_bytes <= 0) {
+            // MSG_DONTWAIT is set
+            switch (errno) {
+            case EAGAIN:
+                // Normal backup
+                app->sock_would_block++;
+                break;
+            case EBADF:
+            case ENOTSOCK:
+                // sockfd is not a valid file descriptor
+                // TODO reopen socket
+                perror("SG Send");
+                return 1;
+                break;
+            case ECONNREFUSED:
+                break;
+            default:
+                perror("SG Send");
+                printf("%d ", errno);
+                return 1;
+            }
+        } else {
+            app->sock_sent++;
+        }
+    }
+    return 0;
+}
+
+static int process_message_body(app_data_t *app, pn_data_t *body) {
+    int err = 0;
+    if (pn_data_type(body) == PN_LIST) {
+        size_t count = pn_data_get_list(body);
+        pn_data_enter(body);
+        for (size_t i = 0; i < count; i++) {
+            if (pn_data_next(body)) {
+                err += process_message_body(app, body);
+            }
+        }
+        pn_data_exit(body);
+    } else if (pn_data_type(body) == PN_SYMBOL ||
+               pn_data_type(body) == PN_STRING ||
+               pn_data_type(body) == PN_BINARY) {
+        err = process_message_binary(app, body);
+    } else {
+        perror("Unexpected message datatype recieved.");
+        err = 1;
+    }
+    return err;
 }
 
 static int decode_message(app_data_t *app, pn_rwbytes_t data) {
@@ -105,36 +162,9 @@ static int decode_message(app_data_t *app, pn_rwbytes_t data) {
     if (!err) {
         pn_data_t *body = pn_message_body(m);
         if (pn_data_next(body)) {
-            pn_bytes_t b = pn_data_get_bytes(body);
-            if (b.start != NULL) {
-                int send_flags = app->socket_flags;
-
-                ssize_t sent_bytes = sendto(app->send_sock, b.start, b.size, send_flags,
-                                            &app->sa, app->sa_len);
-                if (sent_bytes <= 0) {
-                    // MSG_DONTWAIT is set
-                    switch (errno) {
-                        case EAGAIN:
-                            // Normal backup
-                            app->sock_would_block++;
-                            break;
-                        case EBADF:
-                        case ENOTSOCK:
-                            // sockfd is not a valid file descriptor
-                            // TODO reopen socket
-                            perror("SG Send");
-                            return 1; 
-                            break;
-                        case ECONNREFUSED:
-                            break;
-                        default:
-                            perror("SG Send");
-                            printf("%d ",errno);
-                            return 1;
-                    }
-                } else {
-                  app->sock_sent++;
-                }
+            err = process_message_body(app, body);
+            if (err) {
+                return 1;
             }
         }
     } else {
@@ -168,25 +198,25 @@ void *socket_snd_th(void *app_ptr) {
 
     // Create the send socket
     switch (app->domain) {
-        case AF_UNIX:
-            if (prepare_send_socket_unix(app) == -1) {
-                fprintf(stderr, "Failed to create socket... exiting!");
-                return NULL;
-            }
-            break;
+    case AF_UNIX:
+        if (prepare_send_socket_unix(app) == -1) {
+            fprintf(stderr, "Failed to create socket... exiting!");
+            return NULL;
+        }
+        break;
 
-        case AF_INET:
-            if (prepare_send_socket_inet(app) == -1) {
-                fprintf(stderr, "Failed to create socket... exiting!");
-                return NULL;
-            }
-            break;
+    case AF_INET:
+        if (prepare_send_socket_inet(app) == -1) {
+            fprintf(stderr, "Failed to create socket... exiting!");
+            return NULL;
+        }
+        break;
 
-        default:
-            fprintf(stderr, "Unknown domain type: %d", app->domain);
-            break;
+    default:
+        fprintf(stderr, "Unknown domain type: %d", app->domain);
+        break;
     }
-    
+
     clock_gettime(CLOCK_MONOTONIC, &app->rbin->total_t2);
 
     while (1) {

@@ -16,7 +16,7 @@
 #define DEFAULT_INET_HOST "127.0.0.1"
 #define DEFAULT_INET_PORT "30000"
 #define DEFAULT_INET_TARGET DEFAULT_INET_HOST ":" DEFAULT_INET_PORT
-#define DEFAULT_CID       "bridge-%x"
+#define DEFAULT_CID "bridge-%x"
 #define DEFAULT_CONTAINER_ID_PATTERN "sa-%x"
 #define DEFAULT_STATS_PERIOD "0"
 #define DEFAULT_SOCKET_BLOCK "false"
@@ -24,8 +24,8 @@
 #define DEFAULT_RING_BUFFER_COUNT "5000"
 #define DEFAULT_RING_BUFFER_SIZE "2048"
 
-#define AMQP_URL_REGEX "^(amqps*)://(([a-z]+)(:([a-z]+))*@)*([a-zA-Z_0-9.-]+)(:([0-9]+))*(.+)$"
-//#define AMQP_URL_REGEX "^amqp://"
+#define AMQP_URL_REGEX \
+    "^(amqps*)://(([a-z]+)(:([a-z]+))*@)*([a-zA-Z_0-9.-]+)(:([0-9]+))*(.+)$"
 
 typedef struct {
     char *user;
@@ -36,12 +36,11 @@ typedef struct {
     char *url;
 } amqp_connection;
 
-
-typedef struct  {
+typedef struct {
     // Parameters section
     int standalone;
     int verbose;
-    int domain;         // connection to SG, AF_UNIX || AF_INET
+    int domain; // connection to SG, AF_UNIX || AF_INET
     int stat_period;
     int ring_buffer_size;
     int ring_buffer_count;
@@ -54,13 +53,13 @@ typedef struct  {
 
     char *peer_host, *peer_port;
 
-    // Runtime 
+    // Runtime
     pthread_t amqp_rcv_th;
     pthread_t socket_snd_th;
 
     int amqp_rcv_th_running;
     int socket_snd_th_running;
-    
+
     pn_proactor_t *proactor;
     pn_listener_t *listener;
     pn_rwbytes_t msgout; /* Buffers for incoming/outgoing messages */

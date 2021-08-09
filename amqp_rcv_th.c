@@ -28,8 +28,10 @@ static time_t start_time;
  * are processed.
  */
 static void close_all(pn_connection_t *c, app_data_t *app) {
-    if (c) pn_connection_close(c);
-    if (app->listener) pn_listener_close(app->listener);
+    if (c)
+        pn_connection_close(c);
+    if (app->listener)
+        pn_listener_close(app->listener);
 }
 
 static void check_condition(pn_event_t *e, pn_condition_t *cond,
@@ -44,7 +46,8 @@ static void check_condition(pn_event_t *e, pn_condition_t *cond,
 }
 
 /* This function handles events when we are acting as the receiver */
-static void handle_receive(app_data_t *app, pn_event_t *event, int *batch_done) {
+static void handle_receive(app_data_t *app, pn_event_t *event,
+                           int *batch_done) {
     /*    printf("handle_receive %s\n", app->container_id);*/
 
     *batch_done = 0;
@@ -53,7 +56,8 @@ static void handle_receive(app_data_t *app, pn_event_t *event, int *batch_done) 
         pn_link_t *l = pn_delivery_link(d);
         size_t size = pn_delivery_pending(d);
 
-        pn_rwbytes_t *m = rb_get_head(app->rbin); /* Append data to incoming message buffer */
+        pn_rwbytes_t *m =
+            rb_get_head(app->rbin); /* Append data to incoming message buffer */
         assert(m);
         ssize_t recv;
         // First time through m->size = 0 for a partial message...
@@ -63,14 +67,14 @@ static void handle_receive(app_data_t *app, pn_event_t *event, int *batch_done) 
         if (recv == PN_ABORTED) {
             printf("Message aborted\n");
             fflush(stdout);
-            m->size = 0;                         /* Forget the data we accumulated */
-            pn_delivery_settle(d);               /* Free the delivery so we can
-                                              receive the next message */
-            pn_link_flow(l, 1);                  /* Replace credit for aborted message */
+            m->size = 0;           /* Forget the data we accumulated */
+            pn_delivery_settle(d); /* Free the delivery so we can
+                                receive the next message */
+            pn_link_flow(l, 1);    /* Replace credit for aborted message */
         } else if (recv < 0 && recv != PN_EOS) { /* Unexpected error */
             pn_condition_format(pn_link_condition(l), "broker",
                                 "PN_DELIVERY error: %s", pn_code(recv));
-            pn_link_close(l);                 /* Unexpected error, close the link */
+            pn_link_close(l); /* Unexpected error, close the link */
         } else if (!pn_delivery_partial(d)) { /* Message is complete */
             // Place in the ring buffer HERE
             rb_put(app->rbin);
@@ -83,10 +87,11 @@ static void handle_receive(app_data_t *app, pn_event_t *event, int *batch_done) 
             app->link_credit += link_credit;
             int free = rb_free_size(app->rbin);
             int credit = free - link_credit + 1;
-            if ( credit > 0 ) {
+            if (credit > 0) {
                 pn_link_flow(l, credit);
             }
-            if ((app->message_count > 0) && (app->sock_sent >= app->message_count)) {
+            if ((app->message_count > 0) &&
+                (app->sock_sent >= app->message_count)) {
                 close_all(pn_event_connection(event), app);
 
                 exit_code = 1;
@@ -102,144 +107,143 @@ static void handle_receive(app_data_t *app, pn_event_t *event, int *batch_done) 
 */
 static bool handle(app_data_t *app, pn_event_t *event, int *batch_done) {
     switch (pn_event_type(event)) {
-        case PN_DELIVERY: {
-            pn_link_t *l = pn_event_link(event);
-            if (l) { /* Only delegate link-related events */
-                handle_receive(app, event, batch_done);
-            }
-            break;
+    case PN_DELIVERY: {
+        pn_link_t *l = pn_event_link(event);
+        if (l) { /* Only delegate link-related events */
+            handle_receive(app, event, batch_done);
         }
+        break;
+    }
 
-        case PN_LISTENER_OPEN: {
-            char port[256]; /* Get the listening port */
-            pn_netaddr_host_port(pn_listener_addr(pn_event_listener(event)),
-                                 NULL, 0, port, sizeof(port));
-            printf("listening on %s\n", port);
-            fflush(stdout);
-            break;
-        }
-        case PN_LISTENER_ACCEPT:
-            pn_listener_accept2(pn_event_listener(event), NULL, NULL);
-            break;
+    case PN_LISTENER_OPEN: {
+        char port[256]; /* Get the listening port */
+        pn_netaddr_host_port(pn_listener_addr(pn_event_listener(event)), NULL,
+                             0, port, sizeof(port));
+        printf("listening on %s\n", port);
+        fflush(stdout);
+        break;
+    }
+    case PN_LISTENER_ACCEPT:
+        pn_listener_accept2(pn_event_listener(event), NULL, NULL);
+        break;
 
-        case PN_CONNECTION_INIT:
-            if (app->verbose) {
-                printf("PN_CONNECTION_INIT %s\n", app->container_id);
-            }
-            pn_connection_t *c = pn_event_connection(event);
-            pn_connection_set_container(c, app->container_id);
-            pn_connection_open(c);
-            pn_session_t *s = pn_session(c);
-            pn_session_open(s);
-            {
-                pn_link_t *l = pn_receiver(s, "sa_receiver");
-                pn_terminus_set_address(pn_link_source(l), app->amqp_con.address);
-                pn_link_open(l);
-                /* cannot receive without granting credit: */
-                pn_link_flow(l, rb_free_size(app->rbin));
-            }
-            break;
-
-        case PN_CONNECTION_BOUND: {
-            if (app->verbose) {
-                printf("PN_CONNECTION_BOUND %s\n", app->container_id);
-            }
-            /* Turn off security */
-            pn_transport_t *t = pn_event_transport(event);
-            pn_transport_require_auth(t, false);
-            pn_sasl_allowed_mechs(pn_sasl(t), "ANONYMOUS");
-            pn_transport_set_max_frame(t, app->ring_buffer_size);
-            break;
+    case PN_CONNECTION_INIT:
+        if (app->verbose) {
+            printf("PN_CONNECTION_INIT %s\n", app->container_id);
         }
-        case PN_CONNECTION_LOCAL_OPEN: {
-            if (app->verbose) {
-                printf("PN_CONNECTION_LOCAL_OPEN %s\n", app->container_id);
-            }
-            break;
-        }
-        case PN_CONNECTION_REMOTE_OPEN: {
-            if (app->verbose) {
-                printf("PN_CONNECTION_REMOTE_OPEN %s\n", app->container_id);
-            }
-            pn_connection_open(
-                pn_event_connection(event)); /* Complete the open */
-            printf("%s ==> (%s)\n", app->container_id, app->amqp_con.url);
-            break;
-        }
-
-        case PN_SESSION_LOCAL_OPEN: {
-            if (app->verbose) {
-                printf("PN_SESSION_LOCAL_OPEN %s\n", app->container_id);
-            }
-            pn_connection_t *c = pn_event_connection(event);
-            pn_session_t *s = pn_session(c);
-            pn_link_t *l = pn_receiver(s, "my_receiver");
+        pn_connection_t *c = pn_event_connection(event);
+        pn_connection_set_container(c, app->container_id);
+        pn_connection_open(c);
+        pn_session_t *s = pn_session(c);
+        pn_session_open(s);
+        {
+            pn_link_t *l = pn_receiver(s, "sa_receiver");
             pn_terminus_set_address(pn_link_source(l), app->amqp_con.address);
-
-            break;
+            pn_link_open(l);
+            /* cannot receive without granting credit: */
+            pn_link_flow(l, rb_free_size(app->rbin));
         }
-        case PN_SESSION_INIT: {
-            if (app->verbose) {
-                printf("PN_SESSION_INIT %s\n", app->container_id);
-            }
-            pn_session_set_incoming_capacity(pn_event_session(event), app->ring_buffer_size * app->ring_buffer_count);
-            pn_session_set_outgoing_window(pn_event_session(event), app->ring_buffer_count);
-            break;
+        break;
+
+    case PN_CONNECTION_BOUND: {
+        if (app->verbose) {
+            printf("PN_CONNECTION_BOUND %s\n", app->container_id);
         }
-        case PN_SESSION_REMOTE_OPEN: {
-            if (app->verbose) {
-                printf("PN_SESSION_REMOTE_OPEN %s\n", app->container_id);
-            }
-            pn_session_open(pn_event_session(event));
-            break;
+        /* Turn off security */
+        pn_transport_t *t = pn_event_transport(event);
+        pn_transport_require_auth(t, false);
+        pn_sasl_allowed_mechs(pn_sasl(t), "ANONYMOUS");
+        pn_transport_set_max_frame(t, app->ring_buffer_size);
+        break;
+    }
+    case PN_CONNECTION_LOCAL_OPEN: {
+        if (app->verbose) {
+            printf("PN_CONNECTION_LOCAL_OPEN %s\n", app->container_id);
         }
-
-        case PN_TRANSPORT_CLOSED:
-            check_condition(
-                event, pn_transport_condition(pn_event_transport(event)), app);
-            break;
-
-        case PN_CONNECTION_REMOTE_CLOSE:
-            check_condition(
-                event,
-                pn_connection_remote_condition(pn_event_connection(event)),
-                app);
-            pn_connection_close(
-                pn_event_connection(event)); /* Return the close */
-            break;
-
-        case PN_SESSION_REMOTE_CLOSE:
-            check_condition(
-                event, pn_session_remote_condition(pn_event_session(event)),
-                app);
-            pn_session_close(pn_event_session(event)); /* Return the close */
-            pn_session_free(pn_event_session(event));
-            break;
-
-        case PN_LINK_REMOTE_CLOSE:
-        case PN_LINK_REMOTE_DETACH:
-            check_condition(
-                event, pn_link_remote_condition(pn_event_link(event)), app);
-            pn_link_close(pn_event_link(event)); /* Return the close */
-            pn_link_free(pn_event_link(event));
-            break;
-
-        case PN_PROACTOR_TIMEOUT:
-            break;
-
-        case PN_LISTENER_CLOSE:
-            app->listener = NULL; /* Listener is closed */
-            check_condition(
-                event, pn_listener_condition(pn_event_listener(event)), app);
-            break;
-
-        case PN_PROACTOR_INACTIVE:
-            return false;
-            break;
-
-        default: {
-            break;
+        break;
+    }
+    case PN_CONNECTION_REMOTE_OPEN: {
+        if (app->verbose) {
+            printf("PN_CONNECTION_REMOTE_OPEN %s\n", app->container_id);
         }
+        pn_connection_open(pn_event_connection(event)); /* Complete the open */
+        printf("%s ==> (%s)\n", app->container_id, app->amqp_con.url);
+        break;
+    }
+
+    case PN_SESSION_LOCAL_OPEN: {
+        if (app->verbose) {
+            printf("PN_SESSION_LOCAL_OPEN %s\n", app->container_id);
+        }
+        pn_connection_t *c = pn_event_connection(event);
+        pn_session_t *s = pn_session(c);
+        pn_link_t *l = pn_receiver(s, "my_receiver");
+        pn_terminus_set_address(pn_link_source(l), app->amqp_con.address);
+
+        break;
+    }
+    case PN_SESSION_INIT: {
+        if (app->verbose) {
+            printf("PN_SESSION_INIT %s\n", app->container_id);
+        }
+        pn_session_set_incoming_capacity(pn_event_session(event),
+                                         app->ring_buffer_size *
+                                             app->ring_buffer_count);
+        pn_session_set_outgoing_window(pn_event_session(event),
+                                       app->ring_buffer_count);
+        break;
+    }
+    case PN_SESSION_REMOTE_OPEN: {
+        if (app->verbose) {
+            printf("PN_SESSION_REMOTE_OPEN %s\n", app->container_id);
+        }
+        pn_session_open(pn_event_session(event));
+        break;
+    }
+
+    case PN_TRANSPORT_CLOSED:
+        check_condition(event,
+                        pn_transport_condition(pn_event_transport(event)), app);
+        break;
+
+    case PN_CONNECTION_REMOTE_CLOSE:
+        check_condition(
+            event, pn_connection_remote_condition(pn_event_connection(event)),
+            app);
+        pn_connection_close(pn_event_connection(event)); /* Return the close */
+        break;
+
+    case PN_SESSION_REMOTE_CLOSE:
+        check_condition(
+            event, pn_session_remote_condition(pn_event_session(event)), app);
+        pn_session_close(pn_event_session(event)); /* Return the close */
+        pn_session_free(pn_event_session(event));
+        break;
+
+    case PN_LINK_REMOTE_CLOSE:
+    case PN_LINK_REMOTE_DETACH:
+        check_condition(event, pn_link_remote_condition(pn_event_link(event)),
+                        app);
+        pn_link_close(pn_event_link(event)); /* Return the close */
+        pn_link_free(pn_event_link(event));
+        break;
+
+    case PN_PROACTOR_TIMEOUT:
+        break;
+
+    case PN_LISTENER_CLOSE:
+        app->listener = NULL; /* Listener is closed */
+        check_condition(event, pn_listener_condition(pn_event_listener(event)),
+                        app);
+        break;
+
+    case PN_PROACTOR_INACTIVE:
+        return false;
+        break;
+
+    default: {
+        break;
+    }
     }
     return exit_code == 0;
 }
@@ -297,7 +301,8 @@ void *amqp_rcv_th(void *app_ptr) {
     if (app->standalone) {
         app->listener = pn_listener();
     }
-    pn_proactor_addr(addr, sizeof(addr), app->amqp_con.host, app->amqp_con.port);
+    pn_proactor_addr(addr, sizeof(addr), app->amqp_con.host,
+                     app->amqp_con.port);
     if (app->standalone) {
         pn_proactor_listen(app->proactor, app->listener, addr, LISTEN_BACKLOG);
     } else {

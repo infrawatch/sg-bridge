@@ -1,0 +1,30 @@
+name: lint-and-build
+
+on: push
+
+jobs:
+  clang-lint:
+    name: Lint code base
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run clang-format-lint
+        uses: DoozyX/clang-format-lint-action@v0.11
+        with:
+          source: '.'
+          exclude: './build'
+          clangFormatVersion: 10
+          inplace: True
+      - name: Check build
+        run: docker run -i --volume $GITHUB_WORKSPACE:/src/sg-bridge:z --workdir /src/sg-bridge fedora:32 /bin/sh -c 'sh ./build/build_checks.sh'
+      - name: Commit in-place changes based on linting recommendations
+        uses: EndBug/add-and-commit@v4
+        with:
+          author_name: InfraWatch CI
+          author_email: robot@infra.watch
+          message: 'Committing clang-format changes'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
