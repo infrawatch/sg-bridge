@@ -12,12 +12,14 @@ typedef struct {
 
     int count;
     int buf_size;
+    bool wake_producer;
 
     volatile int head;
     volatile int tail;
 
     pthread_mutex_t rb_mutex;
     pthread_cond_t rb_ready;
+    pthread_cond_t rb_free;
 
     // stats
     //
@@ -32,7 +34,7 @@ typedef struct {
 
 } rb_rwbytes_t;
 
-extern rb_rwbytes_t *rb_alloc(int count, int buf_size);
+extern rb_rwbytes_t *rb_alloc(int count, int buf_size, bool wake_producer);
 
 extern pn_rwbytes_t *rb_get_head(rb_rwbytes_t *rb);
 

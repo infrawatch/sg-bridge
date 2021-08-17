@@ -50,6 +50,7 @@ enum program_args {
     ARG_RING_BUFFER_COUNT,
     ARG_RING_BUFFER_SIZE,
     ARG_VERBOSE,
+    ARG_AMQP_BLOCK,
     ARG_HELP
 };
 
@@ -101,6 +102,10 @@ struct option_info option_info[] = {
      "",
      "Print extra info, multiple instance increase verbosity.",
      ""},
+    {{"amqp_block", no_argument, 0, ARG_AMQP_BLOCK},
+     "",
+     "Stop reading incoming messages if the buffer is full (%s)",
+     DEFAULT_AMQP_BLOCK},
     {{"help", no_argument, 0, ARG_HELP}, "", "Print help.", ""}};
 
 static void usage(char *program) {
@@ -191,6 +196,7 @@ int main(int argc, char **argv) {
     app.peer_port = DEFAULT_INET_PORT;
     app.ring_buffer_size = atoi(DEFAULT_RING_BUFFER_SIZE);
     app.ring_buffer_count = atoi(DEFAULT_RING_BUFFER_COUNT);
+    app.amqp_block = false; /* disabled */
 
     int num_args = sizeof(option_info) / sizeof(struct option_info);
     struct option *longopts = malloc(sizeof(struct option) * num_args);
@@ -251,6 +257,9 @@ int main(int argc, char **argv) {
         case 'v':
             app.verbose++;
             break;
+        case ARG_AMQP_BLOCK:
+            app.amqp_block = true;
+            break;
         case 'h':
         case ARG_HELP:
             usage(argv[0]);
@@ -285,7 +294,8 @@ int main(int argc, char **argv) {
         printf("Standalone mode\n");
     }
 
-    app.rbin = rb_alloc(app.ring_buffer_count, app.ring_buffer_size);
+    app.rbin =
+        rb_alloc(app.ring_buffer_count, app.ring_buffer_size, app.amqp_block);
 
     app.amqp_rcv_th_running = true;
     pthread_create(&app.amqp_rcv_th, NULL, amqp_rcv_th, (void *)&app);

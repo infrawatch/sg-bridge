@@ -11,11 +11,12 @@
 #include "rb.h"
 #include "utils.h"
 
-rb_rwbytes_t *rb_alloc(int count, int buf_size) {
+rb_rwbytes_t *rb_alloc(int count, int buf_size, bool wake_producer) {
     rb_rwbytes_t *rb = malloc(sizeof(rb_rwbytes_t));
 
     rb->count = count;
     rb->buf_size = buf_size;
+    rb->wake_producer = wake_producer;
 
     if ((rb->ring_buffer = malloc(count * sizeof(pn_rwbytes_t))) == NULL) {
         free(rb);
@@ -52,6 +53,10 @@ rb_rwbytes_t *rb_alloc(int count, int buf_size) {
 
     pthread_cond_init(&rb->rb_ready, NULL);
     pthread_mutex_init(&rb->rb_mutex, NULL);
+
+    if (rb->wake_producer) {
+        pthread_cond_init(&rb->rb_free, NULL);
+    }
 
     return rb;
 }
@@ -128,6 +133,12 @@ pn_rwbytes_t *rb_get(rb_rwbytes_t *rb) {
 
     rb->tail = next;
 
+    if (rb->wake_producer && rb_free_size(rb) == 1) {
+        pthread_mutex_lock(&rb->rb_mutex);
+        pthread_cond_broadcast(&rb->rb_free);
+        pthread_mutex_unlock(&rb->rb_mutex);
+    }
+
     rb->processed++;
 
     return &rb->ring_buffer[rb->tail];
@@ -141,7 +152,7 @@ int rb_free_size(rb_rwbytes_t *rb) {
     int head = rb->head;
     int tail = rb->tail;
 
-    return head > tail ? rb->count - (head - tail) : tail - head;
+    return head > tail ? rb->count - (head - tail) - 1 : tail - head - 1;
 }
 
 int rb_size(rb_rwbytes_t *rb) { return rb->count; }

@@ -23,6 +23,7 @@
 #define DEFAULT_STOP_COUNT "0"
 #define DEFAULT_RING_BUFFER_COUNT "5000"
 #define DEFAULT_RING_BUFFER_SIZE "2048"
+#define DEFAULT_AMQP_BLOCK "false"
 
 #define AMQP_URL_REGEX                                                         \
     "^(amqps*)://(([a-z]+)(:([a-z]+))*@)*([a-zA-Z_0-9.-]+)(:([0-9]+))*(.+)$"
@@ -71,6 +72,7 @@ typedef struct {
     volatile long amqp_partial;
     volatile long amqp_total_batches;
     volatile long amqp_link_credit;
+    volatile bool amqp_block;
 
     /* Ring buffer stats */
     volatile long link_credit;
