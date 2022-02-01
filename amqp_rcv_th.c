@@ -84,7 +84,7 @@ static void handle_receive(app_data_t *app, pn_event_t *event,
             pn_delivery_settle(d); /* settle and free d */
 
             int link_credit = pn_link_credit(l);
-            app->link_credit += link_credit;
+            app->link_credit = link_credit;
             int free = rb_free_size(app->rbin);
             if (free == 0 && app->amqp_block) {
                 pthread_mutex_lock(&app->rbin->rb_mutex);
