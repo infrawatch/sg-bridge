@@ -318,8 +318,7 @@ int main(int argc, char **argv) {
                    app.rbin->overruns, app.rbin->overruns - last_overrun,
                    app.sock_sent, app.sock_sent - last_out,
                    app.sock_would_block,
-                   app.sock_would_block - last_sock_overrun,
-                   app.link_credit);
+                   app.sock_would_block - last_sock_overrun, app.link_credit);
 
             sleep_count = 1;
         }
