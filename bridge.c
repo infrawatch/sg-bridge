@@ -319,12 +319,13 @@ int main(int argc, char **argv) {
                    app.sock_sent, app.sock_sent - last_out,
                    app.sock_would_block,
                    app.sock_would_block - last_sock_overrun,
-				   app.link_credit / (float)(app.amqp_received - last_amqp_received));
+                   app.link_credit /
+                       (float)(app.amqp_received - last_amqp_received));
 
             sleep_count = 1;
         }
         sleep_count++;
-		app.link_credit = 0;
+        app.link_credit = 0;
         last_amqp_received = app.amqp_received;
         last_overrun = app.rbin->overruns;
         last_out = app.sock_sent;
