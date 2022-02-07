@@ -313,16 +313,18 @@ int main(int argc, char **argv) {
         sleep(1);
         if (sleep_count == app.stat_period) {
             printf("in: %ld(%ld), amqp_overrun: %ld(%ld), out: %ld(%ld), "
-                   "sock_overrun: %ld(%ld), link_credit: %ld\n",
+                   "sock_overrun: %ld(%ld), link_credit_average: %f\n",
                    app.amqp_received, app.amqp_received - last_amqp_received,
                    app.rbin->overruns, app.rbin->overruns - last_overrun,
                    app.sock_sent, app.sock_sent - last_out,
                    app.sock_would_block,
-                   app.sock_would_block - last_sock_overrun, app.link_credit);
+                   app.sock_would_block - last_sock_overrun,
+				   app.link_credit / (float)(app.amqp_received - last_amqp_received));
 
             sleep_count = 1;
         }
         sleep_count++;
+		app.link_credit = 0;
         last_amqp_received = app.amqp_received;
         last_overrun = app.rbin->overruns;
         last_out = app.sock_sent;
