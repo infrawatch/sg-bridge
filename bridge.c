@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
     long last_overrun = 0;
     long last_out = 0;
     long last_sock_overrun = 0;
-	long last_link_credit = 0;
+    long last_link_credit = 0;
 
     long sleep_count = 1;
 
@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
         last_overrun = app.rbin->overruns;
         last_out = app.sock_sent;
         last_sock_overrun = app.sock_would_block;
-		last_link_credit = app.link_credit;
+        last_link_credit = app.link_credit;
 
         if (app.socket_snd_th_running == 0) {
             pthread_join(app.socket_snd_th, NULL);
