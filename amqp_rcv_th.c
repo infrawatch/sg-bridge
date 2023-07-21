@@ -65,7 +65,8 @@ static void handle_receive(app_data_t *app, pn_event_t *event,
         size_t oldsize = m->size;
         m->size += size;
         if (m->size >= app->ring_buffer_size) {
-            fprintf(stderr, "Message too long: %ldB >= %dB.\n"
+            fprintf(stderr,
+                    "Message too long: %ldB >= %dB.\n"
                     "You may want to increase the ring buffer size.\n",
                     m->size, app->ring_buffer_size);
             // I can't figure out how to stop processing the delivery
@@ -90,7 +91,7 @@ static void handle_receive(app_data_t *app, pn_event_t *event,
         } else if (!pn_delivery_partial(d)) { /* Message is complete */
             // Place in the ring buffer HERE
             if (too_long) {
-                m->size = 0;           /* Forget the data we accumulated */
+                m->size = 0; /* Forget the data we accumulated */
             } else {
                 rb_put(app->rbin);
                 app->amqp_received++;
