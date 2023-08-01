@@ -18,7 +18,7 @@ jobs:
           clangFormatVersion: 10
           inplace: True
       - name: Check build
-        run: docker run -i --volume $GITHUB_WORKSPACE:/src/sg-bridge:z --workdir /src/sg-bridge quay.io/fedora/fedora:latest /bin/sh -c 'sh ./build/build_checks.sh'
+        run: docker run -i --volume $GITHUB_WORKSPACE:/src/sg-bridge:z --workdir /src/sg-bridge fedora:latest /bin/sh -c 'sh ./build/build_checks.sh'
       - name: Commit in-place changes based on linting recommendations
         uses: EndBug/add-and-commit@v9
         with:
