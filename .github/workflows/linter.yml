@@ -5,11 +5,11 @@ on: push
 jobs:
   clang-lint:
     name: Lint code base
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Run clang-format-lint
         uses: DoozyX/clang-format-lint-action@v0.11
         with:
@@ -18,9 +18,9 @@ jobs:
           clangFormatVersion: 10
           inplace: True
       - name: Check build
-        run: docker run -i --volume $GITHUB_WORKSPACE:/src/sg-bridge:z --workdir /src/sg-bridge fedora:32 /bin/sh -c 'sh ./build/build_checks.sh'
+        run: docker run -i --volume $GITHUB_WORKSPACE:/src/sg-bridge:z --workdir /src/sg-bridge quay.io/fedora/fedora:latest /bin/sh -c 'sh ./build/build_checks.sh'
       - name: Commit in-place changes based on linting recommendations
-        uses: EndBug/add-and-commit@v4
+        uses: EndBug/add-and-commit@v9
         with:
           author_name: InfraWatch CI
           author_email: robot@infra.watch
