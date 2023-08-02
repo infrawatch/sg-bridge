@@ -55,6 +55,7 @@ static void handle_receive(app_data_t *app, pn_event_t *event,
     if (pn_delivery_readable(d)) {
         pn_link_t *l = pn_delivery_link(d);
         size_t size = pn_delivery_pending(d);
+        bool too_long = false;
 
         pn_rwbytes_t *m =
             rb_get_head(app->rbin); /* Append data to incoming message buffer */
@@ -63,7 +64,19 @@ static void handle_receive(app_data_t *app, pn_event_t *event,
         // First time through m->size = 0 for a partial message...
         size_t oldsize = m->size;
         m->size += size;
-        recv = pn_link_recv(l, m->start + oldsize, size);
+        if (m->size >= app->ring_buffer_size) {
+            fprintf(stderr,
+                    "Message too long: %ldB >= %dB.\n"
+                    "You may want to increase the ring buffer size.\n",
+                    m->size, app->ring_buffer_size);
+            // I can't figure out how to stop processing the delivery
+            // without reading everything, so just read from the start
+            // of the buffer and discard it later.
+            recv = pn_link_recv(l, m->start, size);
+            too_long = true;
+        } else {
+            recv = pn_link_recv(l, m->start + oldsize, size);
+        }
         if (recv == PN_ABORTED) {
             printf("Message aborted\n");
             fflush(stdout);
@@ -77,9 +90,13 @@ static void handle_receive(app_data_t *app, pn_event_t *event,
             pn_link_close(l); /* Unexpected error, close the link */
         } else if (!pn_delivery_partial(d)) { /* Message is complete */
             // Place in the ring buffer HERE
-            rb_put(app->rbin);
+            if (too_long) {
+                m->size = 0; /* Forget the data we accumulated */
+            } else {
+                rb_put(app->rbin);
+                app->amqp_received++;
+            }
 
-            app->amqp_received++;
             pn_delivery_update(d, PN_ACCEPTED);
             pn_delivery_settle(d); /* settle and free d */
 
