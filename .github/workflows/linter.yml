@@ -28,3 +28,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  docker-build-check:
+    name: Check Dockerfile results in successful build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Check build of Dockerfile is successful
+        run: docker build -t sg-bridge:check-build -f build/Dockerfile .
