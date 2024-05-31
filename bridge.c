@@ -20,7 +20,6 @@
 #include <proton/session.h>
 #include <proton/transport.h>
 #include <pthread.h>
-#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -136,44 +135,6 @@ static void usage(char *program) {
     }
 }
 
-static int match_regex(char *regmatch, char *matches[], int n_matches,
-                       const char *to_match) {
-    /* "M" contains the matches found. */
-    regmatch_t m[n_matches];
-    regex_t regex;
-
-    if (regcomp(&regex, regmatch, REG_EXTENDED)) {
-        fprintf(stderr, "Could not compile regex: %s\n", regmatch);
-
-        return -1;
-    }
-
-    int nomatch = regexec(&regex, to_match, n_matches, m, 0);
-    if (nomatch == REG_NOMATCH) {
-        return 0;
-    }
-
-    int match_count = 0;
-    for (int i = 0; i < n_matches; i++) {
-        if (m[i].rm_so == -1) {
-            continue;
-        }
-        match_count++;
-
-        int match_len = m[i].rm_eo - m[i].rm_so;
-
-        matches[i] = malloc(match_len + 1); // make room for '\0'
-
-        int k = 0;
-        for (int j = m[i].rm_so; j < m[i].rm_eo; j++) {
-            matches[i][k++] = to_match[j];
-        }
-        matches[i][k] = '\0';
-    }
-
-    return match_count;
-}
-
 int main(int argc, char **argv) {
     app_data_t app = {0};
     char cid_buf[100];
@@ -275,16 +236,21 @@ int main(int argc, char **argv) {
 
     match_regex(AMQP_URL_REGEX, matches, 10, app.amqp_con.url);
     if (matches[3] != NULL) {
-        app.amqp_con.user = strdup(matches[2]);
+        app.amqp_con.user = strdup(matches[3]);
     }
     if (matches[5] != NULL) {
-        app.amqp_con.password = strdup(matches[4]);
+        app.amqp_con.password = strdup(matches[5]);
     }
     if (matches[6] == NULL || matches[9] == NULL) {
         fprintf(stderr, "Invalid AMQP URL: %s", app.amqp_con.url);
         exit(1);
     }
-    app.amqp_con.host = strdup(matches[6]);
+    if (strchr(matches[6], '[') != NULL && strchr(matches[6], ']') != NULL) {
+        app.amqp_con.host = strndup(matches[6] + 1, strlen(matches[6]) - 2);
+    } else {
+        app.amqp_con.host = strdup(matches[6]);
+    }
+
     app.amqp_con.address = strdup(matches[9]);
     if (matches[8] != NULL) {
         app.amqp_con.port = strdup(matches[8]);

@@ -1,24 +1,32 @@
-
 MAJOR?=0
 MINOR?=1
 
 VERSION=$(MAJOR).$(MINOR)
 
 BIN := bridge
+TEST_EXEC = tests
 
-SRCS = $(wildcard *.c)
+# Specify the source files, excluding the test and the main source file
+MAIN_SRC = bridge.c
+SRCS = $(filter-out tests.c $(MAIN_SRC), $(wildcard *.c))
+TEST_SRC = tests.c
 
 OBJDIR := obj
+TEST_OBJDIR := test_obj
 
 DEPDIR := $(OBJDIR)/.deps
 
 # object files, auto generated from source files
 OBJS := $(patsubst %,$(OBJDIR)/%.o,$(basename $(SRCS)))
+TEST_OBJS := $(patsubst %,$(TEST_OBJDIR)/%.o,$(basename $(SRCS)))
+TEST_OBJS += $(TEST_OBJDIR)/$(basename $(TEST_SRC)).o
+
 # dependency files, auto generated from source files
 DEPS := $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS)))
 
 # compilers (at least gcc and clang) don't create the subdirectories automatically
 $(shell mkdir -p $(dir $(OBJS)) >/dev/null)
+$(shell mkdir -p $(dir $(TEST_OBJS)) >/dev/null)
 $(shell mkdir -p $(dir $(DEPS)) >/dev/null)
 
 CC=gcc
@@ -48,7 +56,7 @@ debug: all
 
 .PHONY: clean
 clean:
-	rm -fr $(OBJDIR) $(DEPDIR)
+	rm -fr $(OBJDIR) $(TEST_OBJDIR) $(DEPDIR)
 
 .PHONY: clean-image
 clean-image: version-check
@@ -61,7 +69,7 @@ image: version-check
 	@buildah bud -t ${HUB_NAMESPACE}/${BRIDGE_IMAGE_NAME}:latest -f build/Dockerfile .
 	@echo 'Done.'
 
-$(BIN): $(OBJS)
+$(BIN): $(OBJS) $(OBJDIR)/$(basename $(MAIN_SRC)).o
 	$(CC) -o $@ $^ $(LDFLAGS) $(CFLAGS) $(LDLIBS)
 
 $(OBJDIR)/%.o: %.c %.h
@@ -76,6 +84,19 @@ $(OBJDIR)/%.o : %.c $(DEPDIR)/%.d %.h | $(DEPDIR)
 .PRECIOUS: $(DEPDIR)/%.d
 $(DEPDIR)/%.d: ;
 
+# Build unit test executable
+$(TEST_EXEC): $(TEST_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+# Compile unit test file
+$(TEST_OBJDIR)/%.o: %.c
+	@mkdir -p $(TEST_OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Run unit tests
+test: $(TEST_EXEC)
+	@$(TEST_EXEC)
+
 #################################
 # Utilities
 #################################
@@ -83,11 +104,11 @@ $(DEPDIR)/%.d: ;
 .PHONY: version-check
 version-check:
 	@echo "+ $@"
-    ifdef VERSION
+	ifdef VERSION
 		@echo "VERSION is ${VERSION}"
-    else
+	else
 		@echo "VERSION is not set!"
 		@false;
-    endif
+	endif
 
 -include $(DEPS)

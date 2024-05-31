@@ -26,7 +26,9 @@
 #define DEFAULT_AMQP_BLOCK "false"
 
 #define AMQP_URL_REGEX                                                         \
-    "^(amqps*)://(([a-z]+)(:([a-z]+))*@)*([a-zA-Z_0-9.-]+)(:([0-9]+))*(.+)$"
+    "^(amqps*)://"                                                             \
+    "(([a-z]+)(:([a-z]+))*@)*([a-zA-Z_0-9.-]+|\\[[:a-fA-F0-9]+\\])(:([0-9]+))" \
+    "?(/[^[:space:]]*)?$"
 
 typedef struct {
     char *user;
