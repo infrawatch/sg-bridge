@@ -1,0 +1,20 @@
+name: Unit tests suite
+env:
+  TEST_IMAGE: quay.io/centos/centos:stream9
+  PROJECT_ROOT: /src/github.com/infrawatch/sg-bridge
+  OPSTOOLS_REPO: https://git.centos.org/rpms/centos-release-opstools/raw/c9s-sig-opstools/f/SOURCES/CentOS-OpsTools.repo
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run sg-core unit test suite
+        run: |
+          docker run --name=testsuite -uroot --network host -e OPSTOOLS_REPO \
+            --volume ${{ github.workspace }}:$PROJECT_ROOT:z --workdir $PROJECT_ROOT \
+            $TEST_IMAGE bash $PROJECT_ROOT/ci/run_tests.sh
