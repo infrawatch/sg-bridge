@@ -1,5 +1,7 @@
 #include "utils.h"
+#include <regex.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void time_diff(struct timespec t1, struct timespec t2, struct timespec *diff) {
     if (t2.tv_nsec < t1.tv_nsec) {
@@ -27,4 +29,42 @@ char *time_snprintf(char *buf, size_t n, struct timespec t1) {
     snprintf(buf, n, "%f", pct);
 
     return buf;
+}
+
+int match_regex(char *regmatch, char *matches[], int n_matches,
+                const char *to_match) {
+    /* "M" contains the matches found. */
+    regmatch_t m[n_matches];
+    regex_t regex;
+
+    if (regcomp(&regex, regmatch, REG_EXTENDED)) {
+        fprintf(stderr, "Could not compile regex: %s\n", regmatch);
+
+        return -1;
+    }
+
+    int nomatch = regexec(&regex, to_match, n_matches, m, 0);
+    if (nomatch == REG_NOMATCH) {
+        return 0;
+    }
+
+    int match_count = 0;
+    for (int i = 0; i < n_matches; i++) {
+        if (m[i].rm_so == -1) {
+            continue;
+        }
+        match_count++;
+
+        int match_len = m[i].rm_eo - m[i].rm_so;
+
+        matches[i] = malloc(match_len + 1); // make room for '\0'
+
+        int k = 0;
+        for (int j = m[i].rm_so; j < m[i].rm_eo; j++) {
+            matches[i][k++] = to_match[j];
+        }
+        matches[i][k] = '\0';
+    }
+
+    return match_count;
 }
