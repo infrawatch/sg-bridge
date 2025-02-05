@@ -2,7 +2,7 @@
 FROM registry.access.redhat.com/ubi9 AS builder
 
 # dependencies for qpid-proton-c
-COPY build/repos/centos9-caracal.repo /etc/yum.repos.d/centos9-caracal.repo
+COPY build/repos/opstools.repo /etc/yum.repos.d/opstools.repo
 
 # redhat-rpm-config is required to provide hardening compiling instructions
 # (such as /usr/lib/rpm/redhat/redhat-hardened-cc1) even though we're not
@@ -23,7 +23,7 @@ RUN     make && \
 FROM registry.access.redhat.com/ubi9
 
 # dependencies for qpid-proton-c
-COPY build/repos/centos9-caracal.repo /etc/yum.repos.d/centos9-caracal.repo
+COPY build/repos/opstools.repo /etc/yum.repos.d/opstools.repo
 
 RUN dnf install qpid-proton-c --setopt=tsflags=nodocs -y && \
         dnf clean all && \
