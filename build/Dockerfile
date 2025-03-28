@@ -1,5 +1,5 @@
 # --- Build the bridge
-FROM registry.access.redhat.com/ubi8 AS builder
+FROM registry.access.redhat.com/ubi9 AS builder
 
 # dependencies for qpid-proton-c
 COPY build/repos/opstools.repo /etc/yum.repos.d/opstools.repo
@@ -11,16 +11,16 @@ RUN dnf install qpid-proton-c-devel --setopt=tsflags=nodocs -y && \
         dnf install gcc make redhat-rpm-config -y && \
         dnf clean all
 
-ENV D=/home/bridge
+ENV SGBRIDGE_DIR=/home/bridge
 
-WORKDIR $D
-COPY . $D/
+WORKDIR $SGBRIDGE_DIR
+COPY . $SGBRIDGE_DIR/
 
 RUN     make && \
         mv bridge /tmp/
 
 # --- end build, create bridge runtime layer ---
-FROM registry.access.redhat.com/ubi8
+FROM registry.access.redhat.com/ubi9
 
 # dependencies for qpid-proton-c
 COPY build/repos/opstools.repo /etc/yum.repos.d/opstools.repo
