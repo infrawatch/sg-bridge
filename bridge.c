@@ -260,6 +260,11 @@ int main(int argc, char **argv) {
         printf("Standalone mode\n");
     }
 
+    if (app.ring_buffer_count <= 0 || app.ring_buffer_size <= 0) {
+        fprintf(stderr, "Ring buffer count and size must be positive\n");
+        exit(1);
+    }
+
     app.rbin =
         rb_alloc(app.ring_buffer_count, app.ring_buffer_size, app.amqp_block);
 
