@@ -75,15 +75,20 @@ static int prepare_send_socket_inet(app_data_t *app) {
     }
 
     char addrstr[100];
+    void *ptr;
+    int port;
 
-    void *ptr = &((struct sockaddr_in *)peer_addrinfo->ai_addr)->sin_addr;
+    if (peer_addrinfo->ai_family == AF_INET6) {
+        struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)peer_addrinfo->ai_addr;
+        ptr = &sa6->sin6_addr;
+        port = ntohs(sa6->sin6_port);
+    } else {
+        struct sockaddr_in *sa4 = (struct sockaddr_in *)peer_addrinfo->ai_addr;
+        ptr = &sa4->sin_addr;
+        port = ntohs(sa4->sin_port);
+    }
     inet_ntop(peer_addrinfo->ai_family, ptr, addrstr, sizeof(addrstr));
-
-    printf(
-        "%s ==> (%s:%d)\n", app->container_id, addrstr,
-        ntohs(
-            (((struct sockaddr_in *)((struct sockaddr *)peer_addrinfo->ai_addr))
-                 ->sin_port)));
+    printf("%s ==> (%s:%d)\n", app->container_id, addrstr, port);
 
     memcpy(&app->sa, peer_addrinfo->ai_addr, peer_addrinfo->ai_addrlen);
     app->sa_len = peer_addrinfo->ai_addrlen;
