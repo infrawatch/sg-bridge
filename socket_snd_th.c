@@ -35,7 +35,8 @@ static int prepare_send_socket_unix(app_data_t *app) {
 
     /* Construct name of socket to send to. */
     name.sun_family = AF_UNIX;
-    strcpy(name.sun_path, app->unix_socket_name);
+    strncpy(name.sun_path, app->unix_socket_name, sizeof(name.sun_path) - 1);
+    name.sun_path[sizeof(name.sun_path) - 1] = '\0';
 
     printf("%s ==> (%s)\n", app->container_id, name.sun_path);
 
