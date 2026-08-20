@@ -260,6 +260,11 @@ int main(int argc, char **argv) {
         printf("Standalone mode\n");
     }
 
+    if (app.ring_buffer_count <= 0 || app.ring_buffer_size <= 0) {
+        fprintf(stderr, "Ring buffer count and size must be positive\n");
+        exit(1);
+    }
+
     app.rbin =
         rb_alloc(app.ring_buffer_count, app.ring_buffer_size, app.amqp_block);
 
@@ -279,15 +284,18 @@ int main(int argc, char **argv) {
     while (1) {
         sleep(1);
         if (sleep_count == app.stat_period) {
+            long amqp_delta = app.amqp_received - last_amqp_received;
             printf("in: %ld(%ld), amqp_overrun: %ld(%ld), out: %ld(%ld), "
                    "sock_overrun: %ld(%ld), link_credit_average: %f\n",
-                   app.amqp_received, app.amqp_received - last_amqp_received,
+                   app.amqp_received, amqp_delta,
                    app.rbin->overruns, app.rbin->overruns - last_overrun,
                    app.sock_sent, app.sock_sent - last_out,
                    app.sock_would_block,
                    app.sock_would_block - last_sock_overrun,
-                   (app.link_credit - last_link_credit) /
-                       (float)(app.amqp_received - last_amqp_received));
+                   amqp_delta > 0
+                       ? (app.link_credit - last_link_credit) /
+                             (float)amqp_delta
+                       : 0.0f);
 
             sleep_count = 1;
         }
